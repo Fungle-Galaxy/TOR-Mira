@@ -1,0 +1,61 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <Version>5.1.0</Version>
+        <Description>TheOtherRoles</Description>
+        <Authors>Eisbison</Authors>
+        <LangVersion>latest</LangVersion>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <Platforms>Windows;Android</Platforms>
+        <RootNamespace>TheOtherRoles</RootNamespace>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Platform)' == 'Windows'">
+        <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Platform)' == 'Android'">
+        <DefineConstants>$(DefineConstants);ANDROID</DefineConstants>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <EmbeddedResource Include="Resources\**" Exclude="Resources\SoundEffects\toraudio_Win;Resources\SoundEffects\toraudio_And;Resources\IntroAnimation\intro_Win;Resources\IntroAnimation\intro_And;Resources\Animation\animation_Win;Resources\Animation\animation_And" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(Platform)' == 'Windows'">
+        <EmbeddedResource Include="Resources\SoundEffects\toraudio_Win" Link="Resources\SoundEffects\toraudio" />
+        <EmbeddedResource Include="Resources\IntroAnimation\intro_Win" Link="Resources\IntroAnimation\intro" />
+        <EmbeddedResource Include="Resources\Animation\animation_Win" Link="Resources\Animation\animation" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(Platform)' == 'Android'">
+        <EmbeddedResource Include="Resources\SoundEffects\toraudio_And" Link="Resources\SoundEffects\toraudio" />
+        <EmbeddedResource Include="Resources\IntroAnimation\intro_And" Link="Resources\IntroAnimation\intro" />
+        <EmbeddedResource Include="Resources\Animation\animation_And" Link="Resources\Animation\animation" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="Voice\**" />
+      <EmbeddedResource Remove="Voice\**" />
+      <None Remove="Voice\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="AllOfUs.MiraAPI" Version="0.5.0" />
+        <PackageReference Include="AmongUs.GameLibs.Android" Version="2026.8.18" Condition="'$(Platform)' == 'Android'" />
+        <PackageReference Include="AmongUs.GameLibs.Steam" Version="2026.8.18" Condition="'$(Platform)' == 'Windows'" />
+        <PackageReference Include="BepInEx.IL2CPP.MSBuild" Version="2.1.0-rc.1" />
+        <PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.735" />
+        <PackageReference Include="Reactor" Version="2.5.1-ci.400" />
+    </ItemGroup>
+
+    <Target Name="Date" BeforeTargets="BeforeBuild">
+        <!--Will make the compile time available s.t. we can let betas expire-->
+        <WriteLinesToFile File="$(IntermediateOutputPath)gen.cs" Lines="static partial class Builtin { public static long CompileTime = $([System.DateTime]::UtcNow.Ticks) %3B }" Overwrite="true" />
+        <ItemGroup>
+            <Compile Include="$(IntermediateOutputPath)gen.cs" />
+        </ItemGroup>
+    </Target>
+</Project>

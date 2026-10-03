@@ -1,0 +1,105 @@
+name: AutoBuild .NET
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 6.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Build Windows (AnyCPU)
+        run: dotnet build TheOtherRoles/TheOtherRolesMira.csproj --configuration Release -p:Platform=Windows -o ${{ runner.temp }}/windows
+
+      - name: Build Android
+        run: dotnet build TheOtherRoles/TheOtherRolesMira.csproj --configuration Release -p:Platform=Android -o ${{ runner.temp }}/android
+
+      - name: Upload Windows DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: TheOtherRolesMira-Windows-DLL
+          path: ${{ runner.temp }}/windows/TheOtherRolesMira.dll
+
+      - name: Upload Android DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: TheOtherRolesMira-Android-DLL
+          path: ${{ runner.temp }}/android/TheOtherRolesMira.dll
+
+      - name: Prepare Windows x86 package
+        run: |
+          mkdir -p ${{ runner.temp }}/win-x86
+          
+          curl -L -o ${{ runner.temp }}/win-x86/BepInEx-x86.zip "https://builds.bepinex.dev/projects/bepinex_be/735/BepInEx-Unity.IL2CPP-win-x86-6.0.0-be.735%2B5fef357.zip"
+          unzip -q ${{ runner.temp }}/win-x86/BepInEx-x86.zip -d ${{ runner.temp }}/win-x86
+          rm ${{ runner.temp }}/win-x86/BepInEx-x86.zip
+          
+          unzip -q -o ".github/BepInEx/BepInEx-Extra.zip" -d ${{ runner.temp }}/win-x86
+          
+          cp ${{ runner.temp }}/windows/TheOtherRolesMira.dll ${{ runner.temp }}/win-x86/BepInEx/plugins/TheOtherRolesMira.dll
+          
+          cd ${{ runner.temp }}/win-x86
+          zip -r -q ${{ runner.temp }}/TheOtherRolesMira_Steam.zip .
+
+      - name: Upload Windows x86 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: TheOtherRolesMira-Steam
+          path: ${{ runner.temp }}/TheOtherRolesMira_Steam.zip
+
+      - name: Prepare Windows x64 package
+        run: |
+          mkdir -p ${{ runner.temp }}/win-x64
+          
+          curl -L -o ${{ runner.temp }}/win-x64/BepInEx-x64.zip "https://builds.bepinex.dev/projects/bepinex_be/735/BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.735%2B5fef357.zip"
+          unzip -q ${{ runner.temp }}/win-x64/BepInEx-x64.zip -d ${{ runner.temp }}/win-x64
+          rm ${{ runner.temp }}/win-x64/BepInEx-x64.zip
+          
+          unzip -q -o ".github/BepInEx/BepInEx-Extra.zip" -d ${{ runner.temp }}/win-x64
+          
+          cp ${{ runner.temp }}/windows/TheOtherRolesMira.dll ${{ runner.temp }}/win-x64/BepInEx/plugins/TheOtherRolesMira.dll
+          
+          cd ${{ runner.temp }}/win-x64
+          zip -r -q ${{ runner.temp }}/TheOtherRolesMira_MSStore_Epic.zip .
+
+      - name: Upload Windows x64 package
+        uses: actions/upload-artifact@v4
+        with:
+          name: TheOtherRolesMira-MSStore-Epic
+          path: ${{ runner.temp }}/TheOtherRolesMira_MSStore_Epic.zip
+
+      - name: Prepare Android DLL for release (rename)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: cp ${{ runner.temp }}/android/TheOtherRolesMira.dll ${{ runner.temp }}/TheOtherRolesMira_Android.dll
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ runner.temp }}/windows/TheOtherRolesMira.dll
+            ${{ runner.temp }}/TheOtherRolesMira_Android.dll
+            ${{ runner.temp }}/TheOtherRolesMira_Steam.zip
+            ${{ runner.temp }}/TheOtherRolesMira_MSStore_Epic.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
